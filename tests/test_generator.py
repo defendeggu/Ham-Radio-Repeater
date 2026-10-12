@@ -144,6 +144,23 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(b.skipped.get("über 583 Kanäle"), 2)
 
 
+class LiveFetchTests(unittest.TestCase):
+    def test_rate_limit_stops_all_further_requests(self):
+        import urllib.error
+        from unittest import mock
+        calls = []
+
+        def fake_urlopen(req, timeout):
+            calls.append(req.full_url)
+            raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, None)
+
+        with mock.patch("urllib.request.urlopen", fake_urlopen), \
+             mock.patch("time.sleep"), contextlib.redirect_stdout(io.StringIO()):
+            result = gen.load_live(["Switzerland", "France", "Germany"], "tok", "me@example.org")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result, {})
+
+
 class MainTests(unittest.TestCase):
     def test_folder_run_writes_csv(self):
         with tempfile.TemporaryDirectory() as tmp:

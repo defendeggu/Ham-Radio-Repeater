@@ -358,6 +358,9 @@ def user_agent(contact: str) -> str:
     return (f"Ham-Radio-Repeater-CHIRP/{VERSION} "
             f"(+https://github.com/defendeggu/Ham-Radio-Repeater; {contact})")
 
+class StopFetching(RuntimeError):
+    """Auth failure or rate limit — no further API requests may be sent this run."""
+
 def fetch_country(country: str, token: str, contact: str) -> list[dict]:
     url = f"{API_URL}?{urllib.parse.urlencode({'country': country})}"
     req = urllib.request.Request(url, headers={
@@ -371,7 +374,8 @@ def fetch_country(country: str, token: str, contact: str) -> list[dict]:
     except urllib.error.HTTPError as e:
         hint = {401: "Token fehlt oder ungültig", 403: "Zugriff verweigert (Token/User-Agent prüfen)",
                 429: "Rate-Limit erreicht — später erneut versuchen"}.get(e.code, e.reason)
-        raise RuntimeError(f"HTTP {e.code}: {hint}") from None
+        error = StopFetching if e.code in (401, 403, 429) else RuntimeError
+        raise error(f"HTTP {e.code}: {hint}") from None
     return extract_repeaters(raw, country)
 
 def load_from_folder(data_dir: str, countries: list[str]) -> dict[str, list]:
@@ -402,6 +406,10 @@ def load_live(countries: list[str], token: str, contact: str) -> dict[str, list]
         try:
             result[country] = fetch_country(country, token, contact)
             print(f"{len(result[country])} Repeater")
+        except StopFetching as exc:
+            print(f"FEHLER: {exc}")
+            print("  Abbruch: keine weiteren API-Requests in diesem Lauf.")
+            break
         except Exception as exc:
             print(f"FEHLER: {exc}")
             result[country] = []
@@ -611,6 +619,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"    {'Duplikat':<30} {builder.duplicates:>4}")
 
     print(f"\n  Import in CHIRP: File ▸ Import ▸ {args.output}")
+    print("\n  Data courtesy of RepeaterBook.com. — https://www.repeaterbook.com/")
     if not args.data_dir and not any(country_data.values()):
         print_manual_hint(os.path.basename(sys.argv[0]))
     return 0
