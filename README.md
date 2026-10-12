@@ -109,4 +109,5 @@ Jeder Kanal enthält im CHIRP-Kommentarfeld:
 ## Lizenz
 
 Der Code steht unter der [MIT-Lizenz](LICENSE).
+
 Repeater-Daten © [RepeaterBook.com](https://www.repeaterbook.com/) — nur für den persönlichen Gebrauch.
